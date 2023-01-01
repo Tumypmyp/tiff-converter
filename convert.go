@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"image"
-	"image/png"
 	"io/ioutil"
 	"log"
 	"path/filepath"
@@ -12,7 +11,7 @@ import (
 
 	"github.com/chai2010/tiff"
 	"github.com/disintegration/imaging"
-	"github.com/jung-kurt/gofpdf"
+	"github.com/signintech/gopdf"
 )
 
 func main() {
@@ -22,11 +21,7 @@ func main() {
 	var files = []string{
 		"./testdata/test.tiff",
 	}
-	var layers []string
-	var corners []struct {
-		x int
-		y int
-	}
+	var images []image.Image
 	for _, filename := range files {
 		// Load file data
 		if data, err = ioutil.ReadFile(filename); err != nil {
@@ -63,43 +58,28 @@ func main() {
 				}
 
 				img_rev := imaging.FlipV(img)
-				var buf bytes.Buffer
-				if err = png.Encode(&buf, img_rev); err != nil {
-
-					log.Fatal(err)
-				}
-				layers = append(layers, newname)
-				corners = append(corners, struct{ x, y int }{x: img.Bounds().Dx(), y: img.Bounds().Dy()})
-				if err = ioutil.WriteFile(newname, buf.Bytes(), 0666); err != nil {
-					log.Fatal(err)
-				}
-				fmt.Printf("Save %s ok\n", newname)
+				images = append(images, img_rev)
 			}
 		}
 	}
-	fmt.Println(layers)
 
-	imagesToPdf(layers, corners, "result.pdf")
+	fmt.Printf("%v layers\n", len(images))
+	imagesToPdf(images, "result.pdf")
 }
 
-func imagesToPdf(layers []string, corners []struct{ x, y int }, name string) {
-	pdf := gofpdf.NewCustom(&gofpdf.InitType{
-		UnitStr: "pt",
-		Size:    gofpdf.SizeType{Wd: 1920, Ht: 1080},
-	})
-
-	fmt.Println("layers:", len(layers)-1)
-	for i := 1; i < len(layers); i++ {
+func imagesToPdf(images []image.Image, name string) {
+	pdf := gopdf.GoPdf{}
+	conf := gopdf.Config{Unit: gopdf.Unit_PT, PageSize: gopdf.Rect{W: 1920, H: 1080}}
+	pdf.Start(conf)
+	for _, img := range images {
 		pdf.AddPage()
 
-		x := float64(1920-corners[i].x) / 2
-		y := float64(1080-corners[i].y) / 2
+		x := (conf.PageSize.W - float64(img.Bounds().Dx())) / 2
+		y := (conf.PageSize.H - float64(img.Bounds().Dy())) / 2
+		if err := pdf.ImageFrom(img, x, y, nil); err != nil {
+			log.Fatal(err)
+		}
 
-		fmt.Println(x, y)
-		pdf.Image(layers[i], x, y, 0, 0, false, "", 0, "")
 	}
-	err := pdf.OutputFileAndClose(name)
-	if err != nil {
-		log.Fatal(err)
-	}
+	pdf.WritePdf(name)
 }
