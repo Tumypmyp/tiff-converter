@@ -11,6 +11,7 @@ import (
 	"reflect"
 
 	"github.com/chai2010/tiff"
+	"github.com/disintegration/imaging"
 	"github.com/jung-kurt/gofpdf"
 )
 
@@ -19,7 +20,7 @@ func main() {
 	var err error
 
 	var files = []string{
-		"./testdata/202212091000.tif",
+		"./testdata/test.tiff",
 	}
 	var layers []string
 	var corners []struct {
@@ -43,6 +44,8 @@ func main() {
 			for j := 0; j < len(m[i]); j++ {
 
 				img, ok := m[i][j].(*image.RGBA)
+				//fmt.Println(img0.Stride, img0.Rect)
+				//img := &image.RGBA64{Pix: img0.Pix, Stride: img0.Stride, Rect: img0.Rect}
 				if !ok {
 					log.Fatal("cant convert to RGBA")
 				}
@@ -59,8 +62,10 @@ func main() {
 					continue
 				}
 
+				img_rev := imaging.FlipV(img)
 				var buf bytes.Buffer
-				if err = png.Encode(&buf, img); err != nil {
+				if err = png.Encode(&buf, img_rev); err != nil {
+
 					log.Fatal(err)
 				}
 				layers = append(layers, newname)
@@ -83,8 +88,8 @@ func imagesToPdf(layers []string, corners []struct{ x, y int }, name string) {
 		Size:    gofpdf.SizeType{Wd: 1920, Ht: 1080},
 	})
 
-	fmt.Println("layers:", len(layers))
-	for i := len(layers) - 1; i >= 0; i-- {
+	fmt.Println("layers:", len(layers)-1)
+	for i := 1; i < len(layers); i++ {
 		pdf.AddPage()
 
 		x := float64(1920-corners[i].x) / 2
