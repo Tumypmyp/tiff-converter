@@ -4,13 +4,12 @@ import (
 	"bytes"
 	"fmt"
 	"image"
+	"image/png"
 	"io/ioutil"
 	"log"
-	"path/filepath"
 	"reflect"
 
 	"github.com/chai2010/tiff"
-	"github.com/disintegration/imaging"
 	"github.com/signintech/gopdf"
 )
 
@@ -34,13 +33,10 @@ func main() {
 			log.Println(err)
 		}
 
-		// Encode tiff
+		// Get layers
 		for i := 0; i < len(m); i++ {
-			for j := 0; j < len(m[i]); j++ {
-
+			for j := 1; j < len(m[i]); j++ {
 				img, ok := m[i][j].(*image.RGBA)
-				//fmt.Println(img0.Stride, img0.Rect)
-				//img := &image.RGBA64{Pix: img0.Pix, Stride: img0.Stride, Rect: img0.Rect}
 				if !ok {
 					log.Fatal("cant convert to RGBA")
 				}
@@ -51,32 +47,39 @@ func main() {
 					continue
 				}
 
-				newname := fmt.Sprintf("%s-%02d-%02d.png", filepath.Base(filename), i, j)
 				if errors[i][j] != nil {
-					log.Printf("%s: %v\n", newname, err)
+					log.Printf("%v %v got error: %v\n", i, j, err)
 					continue
 				}
 
-				img_rev := imaging.FlipV(img)
-				images = append(images, img_rev)
+				images = append(images, img)
 			}
 		}
 	}
 
 	fmt.Printf("%v layers\n", len(images))
-	imagesToPdf(images, "result.pdf")
+	encodeToPdf(images, "result.pdf")
 }
 
-func imagesToPdf(images []image.Image, name string) {
+func encodeToPdf(images []image.Image, name string) {
 	pdf := gopdf.GoPdf{}
 	conf := gopdf.Config{Unit: gopdf.Unit_PT, PageSize: gopdf.Rect{W: 1920, H: 1080}}
 	pdf.Start(conf)
 	for _, img := range images {
 		pdf.AddPage()
 
+		var buf bytes.Buffer
+		if err := png.Encode(&buf, img); err != nil {
+			log.Fatal(err)
+		}
+		imgH, err := gopdf.ImageHolderByReader(&buf)
+		if err != nil {
+			log.Fatal(err)
+		}
 		x := (conf.PageSize.W - float64(img.Bounds().Dx())) / 2
 		y := (conf.PageSize.H - float64(img.Bounds().Dy())) / 2
-		if err := pdf.ImageFrom(img, x, y, nil); err != nil {
+		if err := pdf.ImageByHolderWithOptions(imgH,
+			gopdf.ImageOptions{X: x, Y: y, VerticalFlip: true}); err != nil {
 			log.Fatal(err)
 		}
 
