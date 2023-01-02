@@ -7,6 +7,8 @@ import (
 	"image/png"
 	"io/ioutil"
 	"log"
+	"os"
+	"path/filepath"
 	"reflect"
 
 	"github.com/chai2010/tiff"
@@ -17,11 +19,10 @@ func main() {
 	var data []byte
 	var err error
 
-	var files = []string{
-		"./testdata/test.tiff",
-	}
-	var images []image.Image
+	var files = os.Args[1:]
+
 	for _, filename := range files {
+		var images []image.Image
 		// Load file data
 		if data, err = ioutil.ReadFile(filename); err != nil {
 			log.Fatal(err)
@@ -39,13 +40,13 @@ func main() {
 				img, ok := m[i][j].(*image.RGBA)
 				if !ok {
 					log.Fatal("cant convert to RGBA")
-				}
-				fmt.Printf("%v %v\n", reflect.TypeOf(img), img.Bounds())
-				fmt.Printf("%v\n", img.Opaque())
 
+				}
 				if img.Bounds().Dx() <= 200 && img.Bounds().Dy() <= 120 {
 					continue
 				}
+				fmt.Printf("%v %v\n", reflect.TypeOf(img), img.Bounds())
+				fmt.Printf("%v\n", img.Opaque())
 
 				if errors[i][j] != nil {
 					log.Printf("%v %v got error: %v\n", i, j, err)
@@ -55,10 +56,11 @@ func main() {
 				images = append(images, img)
 			}
 		}
-	}
 
-	fmt.Printf("%v layers\n", len(images))
-	encodeToPdf(images, "result.pdf")
+		pdfName := filename[:len(filename)-len(filepath.Ext(filename))] + ".pdf"
+		fmt.Printf("%v layers\n", len(images))
+		encodeToPdf(images, pdfName)
+	}
 }
 
 func encodeToPdf(images []image.Image, name string) {
@@ -85,4 +87,5 @@ func encodeToPdf(images []image.Image, name string) {
 
 	}
 	pdf.WritePdf(name)
+	fmt.Printf("written to %v\n", name)
 }
