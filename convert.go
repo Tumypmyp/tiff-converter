@@ -19,6 +19,9 @@ func main() {
 	var data []byte
 	var err error
 
+	if len(os.Args) <= 1 {
+		log.Fatal("no input files\n")
+	}
 	var files = os.Args[1:]
 
 	for _, filename := range files {
