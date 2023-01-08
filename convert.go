@@ -28,13 +28,13 @@ func main() {
 		var images []image.Image
 		// Load file data
 		if data, err = ioutil.ReadFile(filename); err != nil {
-			log.Fatal(err)
+			log.Fatal("readfile:", err)
 		}
 
 		// Decode tiff
 		m, errors, err := tiff.DecodeAll(bytes.NewReader(data))
 		if err != nil {
-			log.Println(err)
+			log.Println("decode:", err)
 		}
 
 		// Get layers
@@ -42,13 +42,14 @@ func main() {
 			for j := 1; j < len(m[i]); j++ {
 				img, ok := m[i][j].(*image.RGBA)
 				if !ok {
-					log.Fatal("cant convert to RGBA")
+					log.Printf("layer %v %v: cant convert to RGBA\n", i, j)
+					continue
 
 				}
 				if img.Bounds().Dx() <= 200 && img.Bounds().Dy() <= 120 {
 					continue
 				}
-				fmt.Printf("%v %v\n", reflect.TypeOf(img), img.Bounds())
+				fmt.Printf("%v %v %v\n", j, reflect.TypeOf(img), img.Bounds())
 				fmt.Printf("%v\n", img.Opaque())
 
 				if errors[i][j] != nil {
